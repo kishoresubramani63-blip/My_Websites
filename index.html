@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pooma Gold</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- AutoTable -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: url(background.jpg) center/cover no-repeat fixed;
+}
+h1 { text-align: center; color: #2f3100; margin: 15px 0; }
+
+form {
+    max-width: 1000px;
+    margin: auto;
+    padding: 15px;
+    border-radius: 15px;
+    background: rgba(255,255,255,0.25);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 8px; text-align: center; }
+th { background: rgba(255,215,0,0.8); }
+
+button.item-btn {
+    width: 100%;
+    padding: 8px;
+    background: rgba(255,215,0,0.9);
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+input, select, .action-btn {
+    width: 100%;
+    padding: 6px;
+    font-size: 16px;
+}
+
+.action-btn {
+    background: rgba(255,215,0,0.9);
+    font-weight: bold;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#res table {
+    margin-top: 15px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+}
+#res th, #res td {
+    border: 1px solid rgba(255,255,255,0.4);
+}
+
+@media(max-width:600px){
+    th,td{font-size:12px}
+}
+</style>
+
+<script>
+// ================= ITEMS =================
+const items = [
+ {id:"q1", name:"Groundnut Oil", price:{kg:280, lit:260}, unit:"lit"},
+ {id:"q2", name:"Coconut Oil", price:{kg:430, lit:400}, unit:"lit"},
+ {id:"q3", name:"Sesame Oil", price:{kg:430, lit:400}, unit:"lit"},
+ {id:"q4", name:"Castor Oil", price:{kg:320, lit:300}, unit:"lit"},
+ {id:"q5", name:"Turmeric Powder (250g)", price:{kg:70}, unit:"250g"},
+ {id:"q6", name:"Groundnut (Solid)", price:{kg:140}, unit:"kg"},
+ {id:"q7", name:"Groundnut Cake", price:{kg:60}, unit:"kg"},
+ {id:"q8", name:"Coconut Cake", price:{kg:50}, unit:"kg"},
+ {id:"q9", name:"Sesame Cake", price:{kg:25}, unit:"kg"},
+ {id:"q10",name:"Brown Sugar", price:{kg:70}, unit:"kg"}
+];
+
+// ================= ADD ITEM =================
+function addItem(id){
+    const input = document.getElementById(id);
+    input.value = (parseFloat(input.value) || 0) + 1;
+    calculate();
+}
+
+// ================= UPDATE PRICE =================
+function updatePrice(i){
+    const item = items[i-1];
+    if(item.unit === "lit"){
+        const u = document.getElementById("u"+i).value;
+        document.getElementById("price"+i).innerText = `₹ ${item.price[u]} / ${u}`;
+    }
+}
+
+// ================= CALCULATE =================
+function calculate(){
+    let total = 0;
+    let html = `<table>
+    <tr><th>Item</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th></tr>`;
+
+    items.forEach((item,index)=>{
+        const q = +document.getElementById(item.id).value || 0;
+        if(q===0) return;
+
+        let unit=item.unit, price=item.price.kg;
+        if(item.unit==="lit"){
+            unit=document.getElementById("u"+(index+1)).value;
+            price=item.price[unit];
+        } else {
+            price=item.price.kg;
+        }
+
+        const sub=q*price;
+        total+=sub;
+
+        html+=`<tr>
+        <td>${item.name}</td>
+        <td>${q}</td>
+        <td>${unit}</td>
+        <td>₹ ${price}</td>
+        <td>₹ ${sub}</td>
+        </tr>`;
+    });
+
+    html+= total
+        ? `<tr><td colspan="4"><b>Grand Total</b></td><td><b>₹ ${total}</b></td></tr>`
+        : `<tr><td colspan="5">No items selected</td></tr>`;
+
+    html+=`</table>`;
+    document.getElementById("res").innerHTML=html;
+}
+
+// ================= RESET =================
+function resetAll(){
+    document.querySelectorAll("input[type='number']").forEach(i=>i.value="");
+    document.getElementById("res").innerHTML="";
+}
+
+// ================= PDF =================
+function downloadPDF(){
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF();
+
+    doc.text("POOMA GOLD - BILL",105,12,{align:"center"});
+    doc.setFontSize(10);
+
+    let rows=[], total=0;
+
+    items.forEach((item,index)=>{
+        const q=+document.getElementById(item.id).value||0;
+        if(q===0) return;
+
+        let unit=item.unit, price=item.price.kg;
+        if(item.unit==="lit"){
+            unit=document.getElementById("u"+(index+1)).value;
+            price=item.price[unit];
+        }
+        const sub=q*price;
+        total+=sub;
+        rows.push([item.name,q,unit,`₹ ${price}`,`₹ ${sub}`]);
+    });
+
+    if(!rows.length){ alert("No items"); return; }
+
+    doc.autoTable({
+        startY:18,
+        head:[["Item","Qty","Unit","Price","Total"]],
+        body:rows,
+        theme:"grid",
+        styles:{lineColor:[0,0,0],lineWidth:0.5}
+    });
+
+    doc.autoTable({
+        startY:doc.lastAutoTable.finalY+5,
+        body:[["Grand Total","","","",`₹ ${total}`]],
+        theme:"grid",
+        styles:{fontStyle:"bold"}
+    });
+
+    doc.text("Contact: 9865015100",14,doc.lastAutoTable.finalY+15);
+    doc.save("Pooma_Gold_Bill.pdf");
+}
+</script>
+</head>
+
+<body>
+<h1>WELCOME TO POOMA GOLD</h1>
+
+<form>
+<table>
+<tr><th>Item</th><th>Qty</th><th>Unit</th><th>Price</th></tr>
+
+<tr>
+<td><button type="button" class="item-btn" onclick="addItem('q1')">Groundnut Oil</button></td>
+<td><input type="number" id="q1"></td>
+<td>
+<select id="u1" onchange="updatePrice(1)">
+<option value="kg">kg</option>
+<option value="lit" selected>liter</option>
+</select>
+</td>
+<td id="price1">₹ 260 / liter</td>
+</tr>
+
+<tr>
+<td><button type="button" class="item-btn" onclick="addItem('q2')">Coconut Oil</button></td>
+<td><input type="number" id="q2"></td>
+<td>
+<select id="u2" onchange="updatePrice(2)">
+<option value="kg">kg</option>
+<option value="lit" selected>liter</option>
+</select>
+</td>
+<td id="price2">₹ 400 / liter</td>
+</tr>
+
+<tr>
+<td><button type="button" class="item-btn" onclick="addItem('q3')">Sesame Oil</button></td>
+<td><input type="number" id="q3"></td>
+<td>
+<select id="u3" onchange="updatePrice(3)">
+<option value="kg">kg</option>
+<option value="lit" selected>liter</option>
+</select>
+</td>
+<td id="price3">₹ 400 / liter</td>
+</tr>
+
+<tr>
+<td><button type="button" class="item-btn" onclick="addItem('q4')">Castor Oil</button></td>
+<td><input type="number" id="q4"></td>
+<td>
+<select id="u4" onchange="updatePrice(4)">
+<option value="kg">kg</option>
+<option value="lit" selected>liter</option>
+</select>
+</td>
+<td id="price4">₹ 300 / liter</td>
+</tr>
+
+<tr><td><button type="button" class="item-btn" onclick="addItem('q5')">Turmeric Powder (250g)</button></td><td><input type="number" id="q5"></td><td>250g</td><td>₹ 70</td></tr>
+<tr><td><button type="button" class="item-btn" onclick="addItem('q6')">Groundnut (Solid)</button></td><td><input type="number" id="q6"></td><td>kg</td><td>₹ 140</td></tr>
+<tr><td><button type="button" class="item-btn" onclick="addItem('q7')">Groundnut Cake</button></td><td><input type="number" id="q7"></td><td>kg</td><td>₹ 60</td></tr>
+<tr><td><button type="button" class="item-btn" onclick="addItem('q8')">Coconut Cake</button></td><td><input type="number" id="q8"></td><td>kg</td><td>₹ 50</td></tr>
+<tr><td><button type="button" class="item-btn" onclick="addItem('q9')">Sesame Cake</button></td><td><input type="number" id="q9"></td><td>kg</td><td>₹ 25</td></tr>
+<tr><td><button type="button" class="item-btn" onclick="addItem('q10')">Brown Sugar</button></td><td><input type="number" id="q10"></td><td>kg</td><td>₹ 70</td></tr>
+
+<tr>
+<td colspan="4">
+<button class="action-btn" type="button" onclick="calculate()">CALCULATE</button>
+<button class="action-btn" type="button" onclick="downloadPDF()">DOWNLOAD PDF</button>
+<button class="action-btn" type="button" onclick="resetAll()">RESET</button>
+</td>
+</tr>
+</table>
+
+<div id="res"></div>
+</form>
+</body>
+</html>
